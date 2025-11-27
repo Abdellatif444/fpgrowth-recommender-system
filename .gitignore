@@ -49,6 +49,7 @@ Thumbs.db
 .env.local
 .env.production
 .env.*
+!.env.example
 
 # Data - Dataset volumineux
 data/*.xlsx
