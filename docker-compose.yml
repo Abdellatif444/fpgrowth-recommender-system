@@ -1,0 +1,66 @@
+version: '3.8'
+
+services:
+  # Base de données PostgreSQL
+  database:
+    image: postgres:15-alpine
+    container_name: fpgrowth_db
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-fpgrowth_db}
+      POSTGRES_USER: ${POSTGRES_USER:-fpgrowth_user}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-fpgrowth_pass}
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+      - ./database/init.sql:/docker-entrypoint-initdb.d/init.sql
+    networks:
+      - fpgrowth_network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fpgrowth_user} -d ${POSTGRES_DB:-fpgrowth_db}" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Backend Flask API
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: fpgrowth_backend
+    environment:
+      FLASK_APP: app.py
+      FLASK_ENV: development
+      DATABASE_URL: postgresql://${POSTGRES_USER:-fpgrowth_user}:${POSTGRES_PASSWORD:-fpgrowth_pass}@database:5432/${POSTGRES_DB:-fpgrowth_db}
+    ports:
+      - "5000:5000"
+    volumes:
+      - ./backend:/app
+      - ./data:/app/data
+    depends_on:
+      database:
+        condition: service_healthy
+    networks:
+      - fpgrowth_network
+    command: python app.py
+
+  # Frontend (serveur HTTP simple)
+  frontend:
+    image: nginx:alpine
+    container_name: fpgrowth_frontend
+    ports:
+      - "8082:80"
+    volumes:
+      - ./frontend:/usr/share/nginx/html
+    depends_on:
+      - backend
+    networks:
+      - fpgrowth_network
+
+volumes:
+  postgres_data:
+    driver: local
+
+networks:
+  fpgrowth_network:
+    driver: bridge
