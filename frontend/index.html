@@ -3,234 +3,129 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <meta name="description" content="Système de recommandation de produits utilisant l'algorithme FP-Growth">
-    <meta name="authors" content="Student A, Student Y">
-    <title>FP-Growth Recommender System | EHTP</title>
-    <link rel="stylesheet" href="css/style.css?v=2">
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <title>Accueil - E-Commerce FP-Growth</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .landing-hero {
+            height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            text-align: center;
+            background: radial-gradient(circle at center, #1e1b4b, #0f172a);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .landing-hero::before {
+            content: '';
+            position: absolute;
+            width: 200%;
+            height: 200%;
+            background: url('https://img.freepik.com/free-vector/gradient-network-connection-background_23-2148879890.jpg');
+            background-size: cover;
+            opacity: 0.1;
+            animation: rotate 60s linear infinite;
+        }
+        
+        @keyframes rotate {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+        
+        .hero-content {
+            position: relative;
+            z-index: 10;
+            padding: 40px;
+            background: rgba(15, 23, 42, 0.7);
+            backdrop-filter: blur(20px);
+            border-radius: 30px;
+            border: 1px solid rgba(255,255,255,0.1);
+            max-width: 800px;
+            box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+        }
+        
+        .hero-title {
+            font-size: 4rem;
+            font-weight: 800;
+            margin-bottom: 20px;
+            background: linear-gradient(to right, #fff, #818cf8);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+        
+        .hero-subtitle {
+            font-size: 1.5rem;
+            color: #cbd5e1;
+            margin-bottom: 40px;
+        }
+        
+        .cta-buttons {
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+        }
+        
+        .btn-lg {
+            padding: 15px 40px;
+            font-size: 1.2rem;
+            border-radius: 50px;
+        }
+        
+        .features {
+            display: flex;
+            justify-content: center;
+            gap: 40px;
+            margin-top: 60px;
+        }
+        
+        .feature {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 10px;
+            color: #94a3b8;
+        }
+        
+        .feature i {
+            font-size: 2rem;
+            color: #818cf8;
+        }
+    </style>
 </head>
 <body>
-    <!-- Header -->
-    <header class="header">
-        <div class="container">
-            <div class="header-content">
-                <div class="logo">
-                    <div class="logo-icon">🛒</div>
-                    <div class="logo-text">
-                        <h1>FP-Growth Recommender</h1>
-                        <p>Système de Recommandation Intelligent</p>
-                    </div>
-                </div>
-                <div class="header-info">
-                    <div class="status-badge" id="statusBadge">
-                        <span class="status-dot"></span>
-                        <span>Initialisation...</span>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </header>
-
-    <!-- Main Content -->
-    <main class="main-content">
-        <div class="container">
+    <div class="landing-hero">
+        <div class="hero-content">
+            <h1 class="hero-title">NextGen Shop</h1>
+            <p class="hero-subtitle">
+                Découvrez une expérience d'achat révolutionnaire propulsée par l'Intelligence Artificielle.
+            </p>
             
-            <!-- Hero Section -->
-            <section class="hero">
-                <div class="hero-content">
-                    <h2>Découvrez les Associations de Produits</h2>
-                    <p>Utilisez l'algorithme FP-Growth pour analyser les transactions et générer des recommandations personnalisées</p>
-                    <div class="hero-stats" id="heroStats">
-                        <div class="stat-card">
-                            <div class="stat-value">-</div>
-                            <div class="stat-label">Transactions</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">-</div>
-                            <div class="stat-label">Produits</div>
-                        </div>
-                        <div class="stat-card">
-                            <div class="stat-value">-</div>
-                            <div class="stat-label">Clients</div>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Control Panel -->
-            <section class="control-panel">
-                <div class="panel-header">
-                    <h3>🎛️ Panneau de Contrôle</h3>
-                </div>
-                <div class="panel-content">
-                    <div class="control-group">
-                        <button class="btn btn-primary" id="loadDataBtn">
-                            <span class="btn-icon">📥</span>
-                            Charger les Données
-                        </button>
-                        <button class="btn btn-danger" id="deleteDataBtn" style="margin-left: 10px; background-color: #ef4444; color: white; border: none;">
-                            <span class="btn-icon">🗑️</span>
-                            Supprimer
-                        </button>
-                        <div class="control-info">
-                            <small>Charger et nettoyer le dataset Online Retail</small>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <div class="input-group">
-                            <label for="minSupport">Support Minimum</label>
-                            <input type="number" id="minSupport" min="0.001" max="1" step="0.001" value="0.01">
-                            <small>Fréquence minimale d'apparition (0.001 - 1.0)</small>
-                        </div>
-                        <div class="input-group">
-                            <label for="minConfidence">Confiance Minimum</label>
-                            <input type="number" id="minConfidence" min="0.1" max="1" step="0.05" value="0.5">
-                            <small>Fiabilité minimale des règles (0.1 - 1.0)</small>
-                        </div>
-                    </div>
-
-                    <div class="control-group">
-                        <button class="btn btn-success" id="analyzeBtn" disabled>
-                            <span class="btn-icon">🔍</span>
-                            Lancer l'Analyse FP-Growth
-                        </button>
-                        <div class="control-info">
-                            <small>Extraire les itemsets fréquents et générer les règles d'association</small>
-                        </div>
-                    </div>
-                </div>
-            </section>
-
-            <!-- Results Section -->
-            <section class="results-section" id="resultsSection" style="display: none;">
-                
-                <!-- Analysis Stats -->
-                <div class="results-header">
-                    <h3>📊 Résultats de l'Analyse</h3>
-                </div>
-                <div class="stats-grid" id="analysisStats">
-                    <!-- Stats will be inserted here -->
-                </div>
-
-                <!-- Tabs -->
-                <div class="tabs">
-                    <button class="tab-btn active" data-tab="itemsets">Itemsets Fréquents</button>
-                    <button class="tab-btn" data-tab="rules">Règles d'Association</button>
-                    <button class="tab-btn" data-tab="recommender">Recommandations</button>
-                </div>
-
-                <!-- Tab Content -->
-                <div class="tab-content">
-                    
-                    <!-- Itemsets Tab -->
-                    <div class="tab-pane active" id="itemsets-tab">
-                        <div class="tab-header">
-                            <h4>🔢 Itemsets Fréquents</h4>
-                            <p>Ensembles de produits fréquemment achetés ensemble</p>
-                        </div>
-                        <div id="itemsetsList" class="results-list">
-                            <!-- Itemsets will be inserted here -->
-                        </div>
-                    </div>
-
-                    <!-- Rules Tab -->
-                    <div class="tab-pane" id="rules-tab">
-                        <div class="tab-header">
-                            <h4>📋 Règles d'Association</h4>
-                            <p>Relations entre produits avec confiance et lift</p>
-                        </div>
-                        <div id="rulesList" class="results-list">
-                            <!-- Rules will be inserted here -->
-                        </div>
-                    </div>
-
-                    <!-- Recommender Tab -->
-                    <div class="tab-pane" id="recommender-tab">
-                        <div class="tab-header">
-                            <h4>💡 Système de Recommandation</h4>
-                            <p>Obtenez des recommandations basées sur votre panier</p>
-                        </div>
-                        <div class="recommender-panel">
-                            <div class="input-group">
-                                <label for="basketInput">Produits dans le panier (séparés par des virgules)</label>
-                                <textarea id="basketInput" rows="3" placeholder="Ex: WHITE HANGING HEART T-LIGHT HOLDER, REGENCY CAKESTAND 3 TIER"></textarea>
-                            </div>
-                            <button class="btn btn-primary" id="getRecommendationsBtn">
-                                <span class="btn-icon">✨</span>
-                                Obtenir des Recommandations
-                            </button>
-                            <div id="recommendationsList" class="results-list">
-                                <!-- Recommendations will be inserted here -->
-                            </div>
-                        </div>
-                    </div>
-
-                </div>
-            </section>
-
-        </div>
-    </main>
-
-    <!-- Footer -->
-    <footer class="footer">
-        <div class="container">
-            <div class="footer-content">
-                <div class="footer-section">
-                    <h4>Projet Académique</h4>
-                    <p>Intelligence Artificielle Multi-Agents</p>
-                    <p>École Hassania des Travaux Publics (EHTP)</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Auteurs</h4>
-                    <p>Student A</p>
-                    <p>Student Y</p>
-                </div>
-                <div class="footer-section">
-                    <h4>Algorithme</h4>
-                    <p>FP-Growth (Frequent Pattern Growth)</p>
-                    <p>Analyse d'associations et recommandations</p>
-                </div>
+            <div class="cta-buttons">
+                <a href="login.html" class="btn btn-primary btn-lg">
+                    <i class="fas fa-shopping-bag"></i> Commencer le Shopping
+                </a>
+                <a href="login.html" class="btn btn-success btn-lg">
+                    <i class="fas fa-user-shield"></i> Espace Admin
+                </a>
             </div>
-            <div class="footer-bottom">
-                <p>&copy; 2025 EHTP - Tous droits réservés</p>
-            </div>
-        </div>
-    </footer>
-
-    <!-- Chatbot Widget -->
-    <div class="chatbot-widget">
-        <button class="chatbot-toggle" id="chatbotToggle">
-            🤖
-        </button>
-        <div class="chatbot-window" id="chatbotWindow">
-            <div class="chat-header">
-                <h4>Assistant Shopping IA</h4>
-                <button class="close-chat" id="closeChat">×</button>
-            </div>
-            <div class="chat-messages" id="chatMessages">
-                <div class="message bot">
-                    Bonjour ! Je suis votre assistant virtuel. Comment puis-je vous aider à trouver les meilleurs produits ?
+            
+            <div class="features">
+                <div class="feature">
+                    <i class="fas fa-brain"></i>
+                    <span>IA Prédictive</span>
                 </div>
-            </div>
-            <div class="chat-input-area">
-                <input type="text" id="chatInput" placeholder="Posez une question...">
-                <button id="sendMessageBtn">➤</button>
+                <div class="feature">
+                    <i class="fas fa-robot"></i>
+                    <span>Assistant Smart</span>
+                </div>
+                <div class="feature">
+                    <i class="fas fa-bolt"></i>
+                    <span>Temps Réel</span>
+                </div>
             </div>
         </div>
     </div>
-
-    <!-- Loading Overlay -->
-    <div class="loading-overlay" id="loadingOverlay">
-        <div class="loading-spinner"></div>
-        <div class="loading-text">Traitement en cours...</div>
-    </div>
-
-    <!-- Toast Notifications -->
-    <div class="toast-container" id="toastContainer"></div>
-
-    <script src="js/app.js?v=2"></script>
 </body>
 </html>

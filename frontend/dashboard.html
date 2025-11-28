@@ -1,0 +1,467 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Boutique - E-Commerce FP-Growth</title>
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <style>
+        .shop-layout {
+            display: grid;
+            grid-template-columns: 1fr 350px;
+            gap: 30px;
+        }
+        
+        .products-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+            gap: 20px;
+        }
+        
+        .product-card {
+            background: var(--bg-card);
+            border: var(--glass-border);
+            border-radius: var(--radius-lg);
+            overflow: hidden;
+            transition: transform 0.2s;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .product-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--primary-color);
+        }
+        
+        .product-image {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            background: rgba(0,0,0,0.2);
+        }
+        
+        .product-info {
+            padding: 15px;
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .product-name {
+            font-weight: 600;
+            margin-bottom: 5px;
+            font-size: 0.95rem;
+        }
+        
+        .product-price {
+            color: var(--secondary-color);
+            font-weight: 700;
+            font-size: 1.1rem;
+            margin-bottom: 10px;
+        }
+        
+        .add-to-cart {
+            margin-top: auto;
+            width: 100%;
+        }
+        
+        .cart-panel {
+            background: var(--bg-card);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-xl);
+            padding: 20px;
+            border: var(--glass-border);
+            position: sticky;
+            top: 100px;
+            height: fit-content;
+            max-height: calc(100vh - 120px);
+            display: flex;
+            flex-direction: column;
+        }
+        
+        .cart-items {
+            flex: 1;
+            overflow-y: auto;
+            margin: 20px 0;
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        
+        .cart-item {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 10px;
+            background: rgba(255,255,255,0.05);
+            border-radius: var(--radius-md);
+        }
+        
+        .cart-item-info {
+            flex: 1;
+        }
+        
+        .cart-total {
+            border-top: 1px solid var(--border-color);
+            padding-top: 15px;
+            margin-top: auto;
+            font-size: 1.2rem;
+            font-weight: 700;
+            display: flex;
+            justify-content: space-between;
+        }
+        
+        .recommendations-section {
+            grid-column: 1 / -1;
+            margin-top: 40px;
+            padding-top: 20px;
+            border-top: 1px solid var(--border-color);
+        }
+        
+        .rec-scroll {
+            display: flex;
+            gap: 20px;
+            overflow-x: auto;
+            padding-bottom: 15px;
+        }
+        
+        .rec-card {
+            min-width: 200px;
+            width: 200px;
+        }
+    </style>
+</head>
+<body>
+    <header class="header">
+        <div class="container header-content">
+            <div class="logo">
+                <div class="logo-icon">🛍️</div>
+                <div class="logo-text">
+                    <h1>Ma Boutique</h1>
+                    <p>Expérience Shopping Personnalisée</p>
+                </div>
+            </div>
+            <div style="display: flex; gap: 15px; align-items: center;">
+                <span id="userWelcome">Bonjour, Client</span>
+                <button onclick="logout()" class="btn btn-danger btn-sm">Déconnexion</button>
+            </div>
+        </div>
+    </header>
+
+    <main class="container main-content">
+        <div class="shop-layout">
+            <!-- Product List -->
+            <div>
+                <div class="control-panel" style="margin-bottom: 20px; padding: 15px;">
+                    <input type="text" id="searchProduct" placeholder="Rechercher un produit..." 
+                           style="width: 100%; padding: 10px; border-radius: 8px; border: 1px solid var(--border-color); background: rgba(0,0,0,0.3); color: white;"
+                           onkeyup="filterProducts()">
+                </div>
+                
+                <div id="productsGrid" class="products-grid">
+                    <!-- Products loaded here -->
+                </div>
+                
+                <!-- Recommendations -->
+                <div id="recommendationsSection" class="recommendations-section" style="display: none;">
+                    <h3><i class="fas fa-magic"></i> Recommandé pour vous</h3>
+                    <p class="text-muted" style="margin-bottom: 15px;">Basé sur votre panier actuel</p>
+                    <div id="recList" class="rec-scroll">
+                        <!-- Recommendations here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Cart Sidebar -->
+            <div class="cart-panel">
+                <h3><i class="fas fa-shopping-cart"></i> Mon Panier</h3>
+                <div id="cartItems" class="cart-items">
+                    <p class="text-muted" style="text-align: center;">Votre panier est vide</p>
+                </div>
+                
+                <div class="cart-total">
+                    <span>Total</span>
+                    <span id="cartTotal">0.00 €</span>
+                </div>
+                
+                <button onclick="checkout()" class="btn btn-success" style="width: 100%; margin-top: 15px;">
+                    Commander
+                </button>
+            </div>
+        </div>
+    </main>
+
+    <!-- Chatbot Widget -->
+    <div class="chatbot-widget">
+        <button class="chatbot-toggle" onclick="toggleChatbot()">
+            <i class="fas fa-robot"></i>
+        </button>
+
+        <div class="chatbot-window" id="chatbotWindow">
+            <div class="chat-header">
+                <h4><i class="fas fa-robot"></i> Assistant Shopping</h4>
+                <button class="close-chat" onclick="toggleChatbot()"><i class="fas fa-times"></i></button>
+            </div>
+            <div class="chat-messages" id="chatMessages">
+                <div class="message bot">
+                    Bonjour ! Je suis votre assistant virtuel. Je peux vous aider à trouver des produits ou vous suggérer des articles basés sur vos goûts.
+                </div>
+            </div>
+            <div class="chat-input-area">
+                <input type="text" id="chatInput" placeholder="Posez une question..." onkeypress="handleChatInput(event)">
+                <button onclick="sendMessage()"><i class="fas fa-paper-plane"></i></button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Auth Check
+        if (localStorage.getItem('role') !== 'client') {
+            window.location.href = 'login.html';
+        }
+        document.getElementById('userWelcome').textContent = `Bonjour, ${localStorage.getItem('username') || 'Client'}`;
+
+        let allProducts = [];
+        let cart = [];
+
+        // Load Products
+        async function loadProducts() {
+            try {
+                const response = await fetch('http://localhost:5000/api/products');
+                const data = await response.json();
+                if (data.success) {
+                    allProducts = data.products;
+                    renderProducts(allProducts);
+                }
+            } catch (e) {
+                console.error(e);
+            }
+        }
+
+        function renderProducts(products) {
+            const grid = document.getElementById('productsGrid');
+            grid.innerHTML = '';
+            
+            products.forEach(product => {
+                const card = document.createElement('div');
+                card.className = 'product-card';
+                
+                const imgSrc = product.image ? `${product.image}?t=${new Date().getTime()}` : 'https://via.placeholder.com/200x180?text=No+Image';
+                console.log(`Produit: ${product.name}, Image URL: ${imgSrc}`);
+                const price = (product.price !== null && product.price !== undefined) ? `${product.price} €` : 'Prix N/A';
+                
+                card.innerHTML = `
+                    <img src="${imgSrc}" class="product-image" alt="${product.name}">
+                    <div class="product-info">
+                        <div class="product-name" title="${product.name}">${product.name}</div>
+                        <div class="product-price">${price}</div>
+                        <p style="font-size: 0.8rem; color: #aaa; margin-bottom: 10px; flex:1;">
+                            ${product.description || ''}
+                        </p>
+                        <button onclick="addToCart('${product.name.replace(/'/g, "\\'")}', ${product.price || 0})" class="btn btn-primary btn-sm add-to-cart">
+                            Ajouter
+                        </button>
+                    </div>
+                `;
+                grid.appendChild(card);
+            });
+        }
+
+        function filterProducts() {
+            const query = document.getElementById('searchProduct').value.toLowerCase();
+            const filtered = allProducts.filter(p => p.name.toLowerCase().includes(query));
+            renderProducts(filtered);
+        }
+
+        // Cart Functions
+        function addToCart(name, price) {
+            const existing = cart.find(item => item.name === name);
+            if (existing) {
+                existing.quantity++;
+            } else {
+                cart.push({ name, price, quantity: 1 });
+            }
+            updateCartUI();
+            updateRecommendations();
+        }
+
+        function removeFromCart(name) {
+            cart = cart.filter(item => item.name !== name);
+            updateCartUI();
+            updateRecommendations();
+        }
+
+        function updateCartUI() {
+            const container = document.getElementById('cartItems');
+            const totalEl = document.getElementById('cartTotal');
+            
+            if (cart.length === 0) {
+                container.innerHTML = '<p class="text-muted" style="text-align: center;">Votre panier est vide</p>';
+                totalEl.textContent = '0.00 €';
+                return;
+            }
+            
+            container.innerHTML = '';
+            let total = 0;
+            
+            cart.forEach(item => {
+                const itemTotal = item.price * item.quantity;
+                total += itemTotal;
+                
+                const div = document.createElement('div');
+                div.className = 'cart-item';
+                div.innerHTML = `
+                    <div class="cart-item-info">
+                        <div style="font-weight:600; font-size: 0.9rem;">${item.name}</div>
+                        <div style="font-size: 0.8rem; color: #aaa;">${item.quantity} x ${item.price} €</div>
+                    </div>
+                    <button onclick="removeFromCart('${item.name.replace(/'/g, "\\'")}')" style="background:none; border:none; color: var(--danger-color); cursor:pointer;">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                `;
+                container.appendChild(div);
+            });
+            
+            totalEl.textContent = total.toFixed(2) + ' €';
+        }
+
+        async function checkout() {
+            if (cart.length === 0) return;
+            
+            if (!confirm('Confirmer la commande ?')) return;
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/checkout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: cart })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    alert('Commande réussie ! Merci de votre achat.');
+                    cart = [];
+                    updateCartUI();
+                    document.getElementById('recommendationsSection').style.display = 'none';
+                } else {
+                    alert('Erreur: ' + data.error);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Erreur de connexion');
+            }
+        }
+
+        // Recommendations
+        async function updateRecommendations() {
+            if (cart.length === 0) {
+                document.getElementById('recommendationsSection').style.display = 'none';
+                return;
+            }
+            
+            const items = cart.map(i => i.name);
+            
+            try {
+                const response = await fetch('http://localhost:5000/api/recommend', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ items: items, top_n: 5 })
+                });
+                
+                const data = await response.json();
+                
+                if (data.success && data.recommendations.length > 0) {
+                    const recSection = document.getElementById('recommendationsSection');
+                    const recList = document.getElementById('recList');
+                    recSection.style.display = 'block';
+                    recList.innerHTML = '';
+                    
+                    data.recommendations.forEach(rec => {
+                        // Find product details if available
+                        const product = allProducts.find(p => p.name === rec.item) || { name: rec.item, price: 0 };
+                        const imgSrc = product.image || 'https://via.placeholder.com/200x180?text=No+Image';
+                        
+                        const div = document.createElement('div');
+                        div.className = 'product-card rec-card';
+                        div.innerHTML = `
+                            <img src="${imgSrc}" class="product-image" style="height: 120px;">
+                            <div class="product-info" style="padding: 10px;">
+                                <div class="product-name" style="font-size: 0.85rem;">${product.name}</div>
+                                <div style="font-size: 0.75rem; color: var(--accent-color); margin-bottom: 5px;">
+                                    Confiance: ${(rec.confidence * 100).toFixed(0)}%
+                                </div>
+                                <button onclick="addToCart('${product.name.replace(/'/g, "\\'")}', ${product.price || 0})" class="btn btn-primary btn-sm" style="font-size: 0.8rem; padding: 5px;">
+                                    Ajouter
+                                </button>
+                            </div>
+                        `;
+                        recList.appendChild(div);
+                    });
+                }
+            } catch (e) {
+                console.error('Rec error:', e);
+            }
+        }
+
+        // Chatbot
+        function toggleChatbot() {
+            const win = document.getElementById('chatbotWindow');
+            win.classList.toggle('active');
+        }
+
+        function handleChatInput(e) {
+            if (e.key === 'Enter') sendMessage();
+        }
+
+        async function sendMessage() {
+            const input = document.getElementById('chatInput');
+            const msg = input.value.trim();
+            if (!msg) return;
+            
+            // Add user message
+            addMessage(msg, 'user');
+            input.value = '';
+            
+            // Call API
+            try {
+                // Construct history (simplified)
+                const history = []; 
+                
+                const response = await fetch('http://localhost:5000/api/llm/chatbot', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ 
+                        message: msg,
+                        history: history
+                    })
+                });
+                
+                const data = await response.json();
+                if (data.success) {
+                    addMessage(data.response, 'bot');
+                }
+            } catch (e) {
+                addMessage("Désolé, je ne peux pas répondre pour le moment.", 'bot');
+            }
+        }
+
+        function addMessage(text, type) {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = `message ${type}`;
+            div.textContent = text;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function logout() {
+            localStorage.clear();
+            window.location.href = 'login.html';
+        }
+
+        // Init
+        loadProducts();
+    </script>
+</body>
+</html>

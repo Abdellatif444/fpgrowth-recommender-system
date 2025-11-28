@@ -1,7 +1,7 @@
 ﻿"""
 API Flask pour le système de recommandation FP-Growth
 """
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, send_from_directory
 from flask_cors import CORS
 import os
 import time
@@ -13,14 +13,38 @@ from data_loader import data_loader
 from fpgrowth_engine import fpgrowth_engine
 from recommender import recommender
 from llm_service import llm_service
+from products_manager import products_manager
+import pandas as pd
+import uuid
 
 # Initialisation de l'application Flask
-app = Flask(__name__)
+# On configure le dossier static pour pointer vers le dossier frontend
+app = Flask(__name__, static_folder='../frontend', static_url_path='')
 CORS(app)
 
 # Configuration
 app.config['SECRET_KEY'] = os.getenv('SECRET_KEY', 'dev-secret-key')
 app.config['JSON_SORT_KEYS'] = False
+app.config['UPLOAD_FOLDER'] = os.path.join('..', 'frontend', 'images', 'products')
+# Debug: Afficher le chemin absolu
+print(f"DEBUG: UPLOAD_FOLDER (relative): {app.config['UPLOAD_FOLDER']}")
+print(f"DEBUG: UPLOAD_FOLDER (absolute): {os.path.abspath(app.config['UPLOAD_FOLDER'])}")
+
+# ============================================================================
+# ROUTES FICHIERS STATIQUES
+# ============================================================================
+
+@app.route('/')
+def index():
+    return app.send_static_file('index.html')
+
+@app.route('/<path:path>')
+def serve_static(path):
+    return app.send_static_file(path)
+
+# @app.route('/images/products/<filename>')
+# def serve_product_image(filename):
+#     return send_from_directory(app.config['UPLOAD_FOLDER'], filename)
 
 # État de l'application
 app_state = {
@@ -54,6 +78,174 @@ def get_info():
         'algorithm': 'FP-Growth (Frequent Pattern Growth)',
         'state': app_state
     })
+
+# ============================================================================
+# ROUTES D'AUTHENTIFICATION
+# ============================================================================
+
+@app.route('/api/login', methods=['POST'])
+def login():
+    """Authentification simple"""
+    data = request.get_json()
+    username = data.get('username')
+    password = data.get('password')
+
+    # Admin credentials (hardcoded for demo)
+    if username == 'admin' and password == 'admin123':
+        return jsonify({
+            'success': True,
+            'role': 'admin',
+            'token': str(uuid.uuid4())
+        })
+    
+    # User credentials (hardcoded for demo)
+    if username == 'client' and password == 'client123':
+        return jsonify({
+            'success': True,
+            'role': 'client',
+            'token': str(uuid.uuid4())
+        })
+        
+    return jsonify({
+        'success': False,
+        'error': 'Identifiants invalides'
+    }), 401
+
+# ============================================================================
+# ROUTES DE GESTION DES PRODUITS (ADMIN)
+# ============================================================================
+
+@app.route('/api/products', methods=['GET'])
+def get_products():
+    """Obtenir la liste des produits avec métadonnées"""
+    # Récupérer les métadonnées existantes
+    metadata = products_manager.get_all_products()
+    
+    # Récupérer les produits depuis les transactions (si chargées)
+    products_list = []
+    if app_state.get('data_loaded'):
+        try:
+            # On récupère un grand nombre de produits pour avoir une liste complète
+            top_products = data_loader.get_top_products(1000)
+            
+            for name, stats in top_products.items():
+                product_data = metadata.get(name, {})
+                products_list.append({
+                    'name': name,
+                    'sales_count': stats['Quantity'],
+                    'price': product_data.get('price', 0),
+                    'description': product_data.get('description', ''),
+                    'image': product_data.get('image', '')
+                })
+        except Exception as e:
+            print(f"Erreur lors de la récupération des produits: {e}")
+            
+    # Si pas de données chargées, on retourne juste les métadonnées
+    if not products_list:
+        for name, data in metadata.items():
+            products_list.append({
+                'name': name,
+                'sales_count': 0,
+                'price': data.get('price', 0),
+                'description': data.get('description', ''),
+                'image': data.get('image', '')
+            })
+            
+    return jsonify({
+        'success': True,
+        'products': products_list
+    })
+
+@app.route('/api/products', methods=['POST'])
+def update_product():
+    """Mettre à jour ou ajouter un produit"""
+    data = request.get_json()
+    name = data.get('name')
+    price = data.get('price')
+    description = data.get('description')
+    image_url = data.get('image')
+    
+    if not name:
+        return jsonify({'success': False, 'error': 'Nom du produit requis'}), 400
+        
+    updated_product = products_manager.update_product(name, price, description, image_url)
+    return jsonify({
+        'success': True,
+        'product': updated_product
+    })
+
+@app.route('/api/upload-image', methods=['POST'])
+def upload_image():
+    """Uploader une image de produit"""
+    if 'image' not in request.files:
+        return jsonify({'success': False, 'error': 'Aucun fichier image'}), 400
+        
+    file = request.files['image']
+    if file.filename == '':
+        return jsonify({'success': False, 'error': 'Nom de fichier vide'}), 400
+        
+    image_path = products_manager.save_image(file)
+    if image_path:
+        return jsonify({
+            'success': True,
+            'image_path': image_path
+        })
+    
+    return jsonify({'success': False, 'error': 'Erreur lors de l\'upload'}), 500
+
+# ============================================================================
+# ROUTES D'ACHAT (CLIENT)
+# ============================================================================
+
+@app.route('/api/checkout', methods=['POST'])
+def checkout():
+    """Traiter une commande et l'ajouter aux données"""
+    try:
+        data = request.get_json()
+        cart_items = data.get('items', [])
+        
+        if not cart_items:
+            return jsonify({'success': False, 'error': 'Panier vide'}), 400
+            
+        # Créer une nouvelle facture (InvoiceNo)
+        # On utilise un timestamp ou un ID unique
+        invoice_no = f"NEW-{int(time.time())}"
+        invoice_date = datetime.now()
+        
+        # Préparer les données pour le DataFrame
+        rows = []
+        for item in cart_items:
+            rows.append({
+                'InvoiceNo': invoice_no,
+                'StockCode': 'MANUAL', # Code générique
+                'Description': item['name'],
+                'Quantity': int(item.get('quantity', 1)),
+                'InvoiceDate': invoice_date,
+                'UnitPrice': float(item.get('price', 0)),
+                'CustomerID': 99999, # ID générique pour les nouveaux clients
+                'Country': 'France'
+            })
+            
+        df_new = pd.DataFrame(rows)
+        
+        # Insérer dans la base de données
+        db.insert_transactions(df_new)
+        
+        # Mettre à jour le DataLoader en mémoire si nécessaire
+        # (Optionnel : on pourrait recharger tout, mais c'est lourd. 
+        # Pour l'instant, on suppose que le prochain rechargement prendra les nouvelles données)
+        
+        return jsonify({
+            'success': True,
+            'message': 'Commande enregistrée avec succès',
+            'invoice_no': invoice_no
+        })
+        
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 # ============================================================================
 # ROUTES DE GESTION DES DONNÉES

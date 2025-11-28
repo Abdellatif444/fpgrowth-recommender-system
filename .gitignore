@@ -55,3 +55,6 @@ Thumbs.db
 data/*.xlsx
 data/*.csv
 data/*.xls
+
+# Scripts
+scripts/
