@@ -281,6 +281,7 @@
         // Make Chatbot Widget Draggable
         const chatbotWidget = document.getElementById('chatbotWidget');
         const chatHeader = document.getElementById('chatHeader');
+        const chatToggle = document.querySelector('.chatbot-toggle'); // Select the toggle button
         
         let isDragging = false;
         let currentX;
@@ -291,6 +292,7 @@
         let yOffset = 0;
 
         chatHeader.addEventListener("mousedown", dragStart);
+        chatToggle.addEventListener("mousedown", dragStart); // Allow dragging from icon
         document.addEventListener("mouseup", dragEnd);
         document.addEventListener("mousemove", drag);
 
@@ -298,9 +300,10 @@
             initialX = e.clientX - xOffset;
             initialY = e.clientY - yOffset;
 
-            if (e.target === chatHeader || e.target.parentNode === chatHeader) {
+            if (e.target === chatHeader || e.target.parentNode === chatHeader || 
+                e.target === chatToggle || e.target.parentNode === chatToggle) {
                 isDragging = true;
-                chatHeader.style.cursor = "grabbing";
+                // Don't change cursor for toggle to keep pointer, or change to move
             }
         }
 
