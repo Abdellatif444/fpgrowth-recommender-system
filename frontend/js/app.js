@@ -389,6 +389,9 @@ function displayRules(rules) {
 /**
  * Afficher les recommandations
  */
+/**
+ * Afficher les recommandations
+ */
 function displayRecommendations(recommendations, inputItems) {
     const container = document.getElementById('recommendationsList');
     
@@ -413,6 +416,9 @@ function displayRecommendations(recommendations, inputItems) {
                 <div class="result-header">
                     <div class="result-items">
                         <strong>#${index + 1}</strong> ${rec.item}
+                        <button class="btn-explain" onclick="explainRecommendation(this, ['${inputItems.join("','")}'], '${rec.item.replace(/'/g, "\\'")}', ${rec.confidence}, ${rec.lift})">
+                            ✨ Expliquer
+                        </button>
                     </div>
                 </div>
                 <div class="result-metrics">
@@ -431,6 +437,9 @@ function displayRecommendations(recommendations, inputItems) {
             </div>
         `).join('')}
     `;
+    
+    // Lancer la détection de contexte
+    detectContext(inputItems);
 }
 
 // ============================================================================
@@ -454,11 +463,190 @@ function switchTab(tabName) {
 }
 
 // ============================================================================
+// FONCTIONNALITÉS LLM (IA GÉNÉRATIVE)
+// ============================================================================
+
+/**
+ * Basculer l'affichage du chatbot
+ */
+function toggleChatbot() {
+    const window = document.getElementById('chatbotWindow');
+    window.classList.toggle('active');
+    
+    // Focus sur l'input si ouvert
+    if (window.classList.contains('active')) {
+        document.getElementById('chatInput').focus();
+    }
+}
+
+/**
+ * Ajouter un message au chat
+ */
+function addMessageToChat(message, sender) {
+    const container = document.getElementById('chatMessages');
+    const msgDiv = document.createElement('div');
+    msgDiv.className = `message ${sender}`;
+    msgDiv.textContent = message;
+    container.appendChild(msgDiv);
+    container.scrollTop = container.scrollHeight;
+}
+
+/**
+ * Envoyer un message au chatbot
+ */
+async function sendChatMessage() {
+    const input = document.getElementById('chatInput');
+    const message = input.value.trim();
+    
+    if (!message) return;
+    
+    // Afficher le message utilisateur
+    addMessageToChat(message, 'user');
+    input.value = '';
+    
+    // Indicateur de frappe
+    const loadingId = 'chat-loading-' + Date.now();
+    const container = document.getElementById('chatMessages');
+    const loadingDiv = document.createElement('div');
+    loadingDiv.className = 'message bot';
+    loadingDiv.id = loadingId;
+    loadingDiv.textContent = '...';
+    container.appendChild(loadingDiv);
+    container.scrollTop = container.scrollHeight;
+    
+    try {
+        // Récupérer l'historique (simplifié)
+        const history = [];
+        document.querySelectorAll('.message').forEach(el => {
+            if (el.id !== loadingId) {
+                history.push({
+                    role: el.classList.contains('user') ? 'user' : 'assistant',
+                    content: el.textContent
+                });
+            }
+        });
+        
+        const result = await apiCall('/llm/chatbot', 'POST', {
+            message: message,
+            history: history.slice(-10) // Garder les 10 derniers messages
+        });
+        
+        // Supprimer l'indicateur de chargement
+        document.getElementById(loadingId).remove();
+        
+        if (result.success) {
+            addMessageToChat(result.response, 'bot');
+        } else {
+            addMessageToChat("Désolé, j'ai rencontré une erreur.", 'bot');
+        }
+    } catch (error) {
+        document.getElementById(loadingId).remove();
+        addMessageToChat("Erreur de connexion au service IA.", 'bot');
+        console.error(error);
+    }
+}
+
+/**
+ * Expliquer une recommandation
+ */
+async function explainRecommendation(btn, basketItems, recommendedItem, confidence, lift) {
+    const resultItem = btn.closest('.result-item');
+    
+    // Vérifier si l'explication existe déjà
+    let explanationBox = resultItem.querySelector('.explanation-box');
+    if (explanationBox) {
+        explanationBox.classList.toggle('active');
+        return;
+    }
+    
+    // Créer la boîte d'explication
+    explanationBox = document.createElement('div');
+    explanationBox.className = 'explanation-box';
+    explanationBox.innerHTML = '<em>Génération de l\'explication par l\'IA...</em>';
+    resultItem.appendChild(explanationBox);
+    explanationBox.classList.add('active');
+    
+    // Désactiver le bouton pendant le chargement
+    btn.disabled = true;
+    btn.style.cursor = 'wait';
+    
+    try {
+        const result = await apiCall('/llm/explain-recommendation', 'POST', {
+            basket_items: basketItems,
+            recommended_item: recommendedItem,
+            confidence: confidence,
+            lift: lift
+        });
+        
+        if (result.success) {
+            explanationBox.innerHTML = `<strong>💡 Analyse IA :</strong> ${result.explanation}`;
+        } else {
+            explanationBox.innerHTML = "Impossible de générer l'explication.";
+        }
+    } catch (error) {
+        explanationBox.innerHTML = "Erreur lors de la communication avec l'IA.";
+    } finally {
+        btn.disabled = false;
+        btn.style.cursor = 'pointer';
+    }
+}
+
+/**
+ * Détecter le contexte du panier
+ */
+async function detectContext(items) {
+    const container = document.getElementById('recommendationsList');
+    const contextDiv = document.createElement('div');
+    contextDiv.id = 'contextAnalysis';
+    contextDiv.style.marginBottom = '1rem';
+    contextDiv.innerHTML = '<small>🤖 Analyse du contexte en cours...</small>';
+    
+    // Insérer après le résumé du panier
+    const basketSummary = container.querySelector('div:first-child');
+    basketSummary.parentNode.insertBefore(contextDiv, basketSummary.nextSibling);
+    
+    try {
+        const result = await apiCall('/llm/detect-context', 'POST', {
+            basket_items: items
+        });
+        
+        if (result.success && result.context) {
+            const ctx = result.context;
+            contextDiv.innerHTML = `
+                <div style="background: rgba(16, 185, 129, 0.1); padding: 10px; border-radius: 8px; border: 1px solid var(--secondary-color);">
+                    <div style="display: flex; gap: 10px; align-items: center; margin-bottom: 5px;">
+                        <span class="context-badge">Contexte : ${ctx.context}</span>
+                        <span class="context-badge" style="background: var(--primary-color);">Style : ${ctx.style}</span>
+                    </div>
+                    ${ctx.suggestions && ctx.suggestions.length > 0 ? 
+                        `<div style="font-size: 0.9rem; color: var(--text-secondary);">
+                            <strong>Suggestions IA :</strong> ${ctx.suggestions.join(', ')}
+                        </div>` : ''}
+                </div>
+            `;
+        } else {
+            contextDiv.remove();
+        }
+    } catch (error) {
+        console.error("Erreur contexte:", error);
+        contextDiv.remove();
+    }
+}
+
+// ============================================================================
 // INITIALISATION
 // ============================================================================
 
 document.addEventListener('DOMContentLoaded', () => {
     console.log('🚀 FP-Growth Recommender System initialisé');
+    
+    // Ouvrir le chatbot par défaut pour le montrer à l'utilisateur
+    setTimeout(() => {
+        const chatWindow = document.getElementById('chatbotWindow');
+        if (!chatWindow.classList.contains('active')) {
+            toggleChatbot();
+        }
+    }, 1000);
     
     // Event listeners pour les boutons
     document.getElementById('loadDataBtn').addEventListener('click', loadData);
@@ -467,6 +655,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('analyzeBtn').addEventListener('click', analyzeData);
     document.getElementById('getRecommendationsBtn').addEventListener('click', getRecommendations);
     
+    // Event listeners pour le Chatbot
+    document.getElementById('chatbotToggle').addEventListener('click', toggleChatbot);
+    document.getElementById('closeChat').addEventListener('click', toggleChatbot);
+    document.getElementById('sendMessageBtn').addEventListener('click', sendChatMessage);
+    document.getElementById('chatInput').addEventListener('keypress', (e) => {
+        if (e.key === 'Enter') sendChatMessage();
+    });
+    
     // Event listeners pour les onglets
     document.querySelectorAll('.tab-btn').forEach(btn => {
         btn.addEventListener('click', () => {
@@ -474,11 +670,26 @@ document.addEventListener('DOMContentLoaded', () => {
         });
     });
     
-    // Vérifier l'état de l'API
+    // Vérifier l'état de l'API et des données
     apiCall('/health')
-        .then(result => {
+        .then(async result => {
             updateStatusBadge('API connectée', '#10b981');
             console.log('✓ API connectée:', result);
+            
+            // Vérifier si des données sont déjà chargées
+            try {
+                const statsResult = await apiCall('/stats');
+                if (statsResult.success && statsResult.stats.total_transactions > 0) {
+                    console.log('✓ Données déjà présentes en mémoire');
+                    appState.dataLoaded = true;
+                    updateHeroStats(statsResult.stats);
+                    updateStatusBadge('Données prêtes', '#10b981');
+                    document.getElementById('analyzeBtn').disabled = false;
+                    showToast('Données récupérées de la session précédente', 'success');
+                }
+            } catch (e) {
+                console.log('Pas de données chargées initialement');
+            }
         })
         .catch(error => {
             updateStatusBadge('API déconnectée', '#ef4444');

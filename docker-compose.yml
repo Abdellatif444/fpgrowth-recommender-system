@@ -32,6 +32,7 @@ services:
       FLASK_APP: app.py
       FLASK_ENV: development
       DATABASE_URL: postgresql://${POSTGRES_USER:-fpgrowth_user}:${POSTGRES_PASSWORD:-fpgrowth_pass}@database:5432/${POSTGRES_DB:-fpgrowth_db}
+      LLMGATEWAY_API_KEY: ${LLMGATEWAY_API_KEY}
     ports:
       - "5000:5000"
     volumes:

@@ -1,0 +1,34 @@
+# Dockerfile optimisé pour réduire le temps de build
+FROM python:3.11-slim
+
+# Variables d'environnement pour optimisation
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PIP_NO_CACHE_DIR=1 \
+    PIP_DISABLE_PIP_VERSION_CHECK=1
+
+# Installation des dépendances système (une seule couche)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    postgresql-client \
+    libpq-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+WORKDIR /app
+
+# ASTUCE: Copier requirements.txt AVANT le code
+# Ainsi, si le code change, pip install est caché
+COPY requirements.txt .
+
+# Installation des packages Python avec optimisations
+RUN pip install --upgrade pip setuptools wheel && \
+    pip install --no-cache-dir -r requirements.txt
+
+# Copier le code (fait en dernier pour bénéficier du cache)
+COPY . .
+
+# Port exposé
+EXPOSE 5000
+
+# Commande de démarrage
+CMD ["python", "app.py"]

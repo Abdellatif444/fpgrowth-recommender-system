@@ -99,12 +99,23 @@ class DataLoader:
         
         print("Création du DataFrame one-hot encoding...")
         
-        # Créer un DataFrame avec InvoiceNo et Description
-        basket = self.df.groupby(['InvoiceNo', 'Description'])['Quantity'].sum().unstack().fillna(0)
+        # OPTIMISATION: Filtrer les produits trop rares (< 0.5% des factures)
+        total_invoices = self.df['InvoiceNo'].nunique()
+        min_occurrences = int(total_invoices * 0.005)  # 0.5%
         
-        # Convertir en booléen (présence/absence)
-        # Correction des warnings: utilisation de map() et retour de booléens
-        basket_sets = basket.map(lambda x: True if x > 0 else False).astype(bool)
+        product_counts = self.df.groupby('Description')['InvoiceNo'].nunique()
+        frequent_products = product_counts[product_counts >= min_occurrences].index
+        
+        print(f"  Filtrage: {len(frequent_products)}/{len(product_counts)} produits gardés (apparaissant dans ≥{min_occurrences} factures)")
+        
+        # Ne garder que les produits fréquents
+        df_filtered = self.df[self.df['Description'].isin(frequent_products)]
+        
+        # Créer un DataFrame avec InvoiceNo et Description (OPTIMISÉ)
+        basket = df_filtered.groupby(['InvoiceNo', 'Description'])['Quantity'].sum().unstack(fill_value=0)
+        
+        # Convertir en booléen (présence/absence) - méthode optimisée
+        basket_sets = (basket > 0).astype(bool)
         
         print(f"✓ DataFrame créé: {basket_sets.shape[0]} factures × {basket_sets.shape[1]} produits")
         
