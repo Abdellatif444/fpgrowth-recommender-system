@@ -156,9 +156,35 @@
             cursor: pointer;
         }
         .dropdown-content a:hover {background-color: rgba(255,255,255,0.1);}
+        /* Typing Indicator */
+        .typing-indicator {
+            display: flex;
+            gap: 5px;
+            padding: 12px 15px;
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 15px;
+            border-bottom-left-radius: 2px;
+            width: fit-content;
+            margin-bottom: 10px;
+            align-self: flex-start;
+        }
+        .typing-dot {
+            width: 6px;
+            height: 6px;
+            background: rgba(255, 255, 255, 0.7);
+            border-radius: 50%;
+            animation: bounce 1.4s infinite ease-in-out both;
+        }
+        .typing-dot:nth-child(1) { animation-delay: -0.32s; }
+        .typing-dot:nth-child(2) { animation-delay: -0.16s; }
+        @keyframes bounce {
+            0%, 80%, 100% { transform: scale(0); }
+            40% { transform: scale(1); }
+        }
     </style>
 </head>
 <body>
+    <!-- ... (header content remains unchanged) ... -->
     <header class="header">
         <div class="container header-content">
             <div class="logo">
@@ -229,13 +255,13 @@
     </main>
 
     <!-- Chatbot Widget -->
-    <div class="chatbot-widget">
-        <button class="chatbot-toggle" onclick="toggleChatbot()">
+    <div class="chatbot-widget" id="chatbotWidget" style="position: fixed; bottom: 20px; right: 20px; z-index: 1000;">
+        <button class="chatbot-toggle" onclick="toggleChatbot()" style="position: absolute; bottom: 0; right: 0;">
             <i class="fas fa-robot"></i>
         </button>
 
-        <div class="chatbot-window" id="chatbotWindow">
-            <div class="chat-header">
+        <div class="chatbot-window" id="chatbotWindow" style="position: absolute; bottom: 70px; right: 0;">
+            <div class="chat-header" id="chatHeader" style="cursor: grab; user-select: none;">
                 <h4><i class="fas fa-robot"></i> Assistant Shopping</h4>
                 <button class="close-chat" onclick="toggleChatbot()"><i class="fas fa-times"></i></button>
             </div>
@@ -250,6 +276,59 @@
             </div>
         </div>
     </div>
+
+    <script>
+        // Make Chatbot Widget Draggable
+        const chatbotWidget = document.getElementById('chatbotWidget');
+        const chatHeader = document.getElementById('chatHeader');
+        
+        let isDragging = false;
+        let currentX;
+        let currentY;
+        let initialX;
+        let initialY;
+        let xOffset = 0;
+        let yOffset = 0;
+
+        chatHeader.addEventListener("mousedown", dragStart);
+        document.addEventListener("mouseup", dragEnd);
+        document.addEventListener("mousemove", drag);
+
+        function dragStart(e) {
+            initialX = e.clientX - xOffset;
+            initialY = e.clientY - yOffset;
+
+            if (e.target === chatHeader || e.target.parentNode === chatHeader) {
+                isDragging = true;
+                chatHeader.style.cursor = "grabbing";
+            }
+        }
+
+        function dragEnd(e) {
+            initialX = currentX;
+            initialY = currentY;
+
+            isDragging = false;
+            chatHeader.style.cursor = "grab";
+        }
+
+        function drag(e) {
+            if (isDragging) {
+                e.preventDefault();
+                currentX = e.clientX - initialX;
+                currentY = e.clientY - initialY;
+
+                xOffset = currentX;
+                yOffset = currentY;
+
+                setTranslate(currentX, currentY, chatbotWidget);
+            }
+        }
+
+        function setTranslate(xPos, yPos, el) {
+            el.style.transform = "translate3d(" + xPos + "px, " + yPos + "px, 0)";
+        }
+    </script>
 
     <script>
         // Auth Check
@@ -464,6 +543,9 @@
             // Ajouter à l'historique
             chatHistory.push({ role: 'user', content: msg });
             
+            // Afficher l'indicateur de frappe
+            showTypingIndicator();
+
             // Call API
             try {
                 const response = await fetch('http://localhost:5000/api/llm/chatbot', {
@@ -476,6 +558,9 @@
                     })
                 });
                 
+                // Cacher l'indicateur
+                removeTypingIndicator();
+
                 const data = await response.json();
                 if (data.success) {
                     addMessage(data.response, 'bot');
@@ -483,9 +568,32 @@
                     chatHistory.push({ role: 'assistant', content: data.response });
                 }
             } catch (e) {
+                removeTypingIndicator();
                 addMessage("Désolé, je ne peux pas répondre pour le moment.", 'bot');
             }
         }
+
+        function showTypingIndicator() {
+            const container = document.getElementById('chatMessages');
+            const div = document.createElement('div');
+            div.className = 'typing-indicator';
+            div.id = 'typingIndicator';
+            div.innerHTML = `
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+                <div class="typing-dot"></div>
+            `;
+            container.appendChild(div);
+            container.scrollTop = container.scrollHeight;
+        }
+
+        function removeTypingIndicator() {
+            const indicator = document.getElementById('typingIndicator');
+            if (indicator) {
+                indicator.remove();
+            }
+        }
+
 
         function addMessage(text, type) {
             const container = document.getElementById('chatMessages');
