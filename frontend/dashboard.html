@@ -130,6 +130,32 @@
             min-width: 200px;
             width: 200px;
         }
+        
+        /* Dropdown Menu */
+        .dropdown {
+            position: relative;
+            display: inline-block;
+        }
+        .dropdown-content {
+            display: none;
+            position: absolute;
+            right: 0;
+            background-color: var(--bg-card);
+            min-width: 200px;
+            box-shadow: 0 8px 16px 0 rgba(0,0,0,0.2);
+            z-index: 1;
+            border: 1px solid var(--border-color);
+            border-radius: var(--radius-md);
+            backdrop-filter: blur(10px);
+        }
+        .dropdown-content a {
+            color: var(--text-color);
+            padding: 12px 16px;
+            text-decoration: none;
+            display: block;
+            cursor: pointer;
+        }
+        .dropdown-content a:hover {background-color: rgba(255,255,255,0.1);}
     </style>
 </head>
 <body>
@@ -143,6 +169,16 @@
                 </div>
             </div>
             <div style="display: flex; gap: 15px; align-items: center;">
+                <div class="dropdown">
+                    <button onclick="toggleDemoMenu()" class="btn btn-secondary btn-sm" style="background: rgba(255,255,255,0.1); border: 1px solid rgba(255,255,255,0.2);">
+                        <i class="fas fa-magic"></i> Démos
+                    </button>
+                    <div id="demoMenu" class="dropdown-content">
+                        <a onclick="loadDemo('christmas')">🎄 Déco Noël</a>
+                        <a onclick="loadDemo('vintage')">🕰️ Cuisine Vintage</a>
+                        <a onclick="loadDemo('party')">🎉 Fête Anniversaire</a>
+                    </div>
+                </div>
                 <span id="userWelcome">Bonjour, Client</span>
                 <button onclick="logout()" class="btn btn-danger btn-sm">Déconnexion</button>
             </div>
@@ -460,12 +496,73 @@
             container.scrollTop = container.scrollHeight;
         }
 
-        function logout() {
-            localStorage.clear();
-            window.location.href = 'login.html';
+        // Demo Functions
+        function toggleDemoMenu() {
+            const menu = document.getElementById('demoMenu');
+            menu.style.display = menu.style.display === 'block' ? 'none' : 'block';
         }
 
-        // Init
+        // Close dropdown when clicking outside
+        window.onclick = function(event) {
+            if (!event.target.matches('.btn-secondary') && !event.target.matches('.fa-magic')) {
+                const dropdowns = document.getElementsByClassName("dropdown-content");
+                for (let i = 0; i < dropdowns.length; i++) {
+                    const openDropdown = dropdowns[i];
+                    if (openDropdown.style.display === 'block') {
+                        openDropdown.style.display = 'none';
+                    }
+                }
+            }
+        }
+
+        function loadDemo(type) {
+            let demoItems = [];
+            
+            if (type === 'christmas') {
+                demoItems = [
+                    { name: 'PAPER CHAIN KIT 50\'S CHRISTMAS', price: 2.95, quantity: 2 },
+                    { name: 'CHRISTMAS LIGHTS 10 VINTAGE BAUBLES', price: 4.95, quantity: 1 },
+                    { name: 'VINTAGE HEADS AND TAILS CARD GAME', price: 1.25, quantity: 1 }
+                ];
+                alert('🎄 Chargement du panier "Déco Noël"...');
+            } else if (type === 'vintage') {
+                demoItems = [
+                    { name: 'IVORY KITCHEN SCALES', price: 29.95, quantity: 1 },
+                    { name: 'SET 3 RETROSPOT TEA,COFFEE,SUGAR', price: 4.95, quantity: 1 },
+                    { name: 'RED RETROSPOT BOWL', price: 1.25, quantity: 4 }
+                ];
+                alert('🕰️ Chargement du panier "Cuisine Vintage"...');
+            } else if (type === 'party') {
+                demoItems = [
+                    { name: 'PACK OF 72 RETROSPOT CAKE CASES', price: 0.55, quantity: 2 },
+                    { name: 'PARTY BUNTING', price: 4.95, quantity: 1 },
+                    { name: 'SET OF 20 KIDS COOKIE CUTTERS', price: 2.10, quantity: 1 }
+                ];
+                alert('🎉 Chargement du panier "Fête Anniversaire"...');
+            }
+
+            // Vider le panier actuel
+            cart = [];
+            
+            // Ajouter les nouveaux items
+            demoItems.forEach(item => {
+                cart.push(item);
+            });
+            
+            updateCartUI();
+            updateRecommendations();
+            
+            // Ouvrir le chatbot automatiquement pour suggérer des compléments
+            setTimeout(() => {
+                const chatWindow = document.getElementById('chatbotWindow');
+                if (!chatWindow.classList.contains('active')) {
+                    toggleChatbot();
+                }
+                addMessage("J'ai détecté de nouveaux articles dans votre panier ! Voulez-vous des suggestions pour compléter ce look ?", 'bot');
+            }, 1500);
+        }
+
+        // Load on start
         loadProducts();
     </script>
 </body>

@@ -1,0 +1,200 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Visualisation FP-Growth - Network</title>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <script type="text/javascript" src="https://unpkg.com/vis-network/standalone/umd/vis-network.min.js"></script>
+    <link rel="stylesheet" href="css/style.css">
+    <style>
+        body { margin: 0; padding: 0; overflow: hidden; background-color: #0f172a; }
+        #mynetwork {
+            width: 100vw;
+            height: 100vh;
+            border: none;
+        }
+        .controls {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(30, 41, 59, 0.9);
+            padding: 20px;
+            border-radius: 15px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: white;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            box-shadow: 0 10px 25px rgba(0,0,0,0.5);
+            max-width: 300px;
+        }
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 10px;
+            font-size: 0.9rem;
+        }
+        .dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+        .btn-back {
+            position: absolute;
+            top: 20px;
+            right: 20px;
+            z-index: 100;
+        }
+        h2 { margin-top: 0; font-size: 1.2rem; color: #60a5fa; }
+        p { font-size: 0.85rem; color: #94a3b8; margin-bottom: 15px; }
+        .stat-box {
+            background: rgba(255,255,255,0.05);
+            padding: 10px;
+            border-radius: 8px;
+            margin-top: 10px;
+        }
+        .stat-value { font-size: 1.5rem; font-weight: bold; color: white; }
+        .stat-label { font-size: 0.75rem; color: #94a3b8; }
+    </style>
+</head>
+<body>
+
+    <a href="admin.html" class="btn btn-primary btn-back"><i class="fas fa-arrow-left"></i> Retour Admin</a>
+
+    <div class="controls">
+        <h2><i class="fas fa-project-diagram"></i> FP-Growth Network</h2>
+        <p>Visualisation des règles d'association générées par l'algorithme. Chaque lien représente une règle forte.</p>
+        
+        <div class="legend-item">
+            <div class="dot" style="background: #60a5fa;"></div>
+            <span>Produit (Nœud)</span>
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background: #ef4444;"></div>
+            <span>Règle forte (Confiance > 70%)</span>
+        </div>
+        <div class="legend-item">
+            <div class="dot" style="background: #fbbf24;"></div>
+            <span>Règle moyenne (Confiance > 50%)</span>
+        </div>
+
+        <div class="stat-box">
+            <div class="stat-value" id="nodeCount">0</div>
+            <div class="stat-label">Produits connectés</div>
+        </div>
+        <div class="stat-box">
+            <div class="stat-value" id="edgeCount">0</div>
+            <div class="stat-label">Règles d'association</div>
+        </div>
+    </div>
+
+    <div id="mynetwork"></div>
+
+    <script>
+        async function loadGraph() {
+            try {
+                // Récupérer les règles depuis l'API existante
+                const response = await fetch('http://localhost:5000/api/rules?min_confidence=0.5&top_n=200');
+                const data = await response.json();
+                
+                if (!data.success) return;
+
+                const rules = data.rules;
+                const nodes = new vis.DataSet([]);
+                const edges = new vis.DataSet([]);
+                const addedNodes = new Set();
+
+                rules.forEach(rule => {
+                    const fromNode = rule.antecedents[0]; // Simplification: premier antécédent
+                    const toNode = rule.consequents[0];   // Simplification: premier conséquent
+                    
+                    // Ajouter les nœuds s'ils n'existent pas
+                    if (!addedNodes.has(fromNode)) {
+                        nodes.add({ 
+                            id: fromNode, 
+                            label: fromNode.length > 20 ? fromNode.substring(0, 20) + '...' : fromNode, 
+                            title: fromNode,
+                            value: 1,
+                            color: '#1e293b',
+                            font: { color: '#e2e8f0' }
+                        });
+                        addedNodes.add(fromNode);
+                    }
+                    if (!addedNodes.has(toNode)) {
+                        nodes.add({ 
+                            id: toNode, 
+                            label: toNode.length > 20 ? toNode.substring(0, 20) + '...' : toNode, 
+                            title: toNode,
+                            value: 1,
+                            color: '#1e293b',
+                            font: { color: '#e2e8f0' }
+                        });
+                        addedNodes.add(toNode);
+                    }
+
+                    // Couleur du lien selon la confiance
+                    let edgeColor = '#94a3b8'; // Gris par défaut
+                    if (rule.confidence > 0.8) edgeColor = '#ef4444'; // Rouge (très fort)
+                    else if (rule.confidence > 0.6) edgeColor = '#fbbf24'; // Jaune (moyen)
+
+                    // Ajouter le lien (arête)
+                    edges.add({
+                        from: fromNode,
+                        to: toNode,
+                        arrows: 'to',
+                        color: { color: edgeColor, opacity: 0.6 },
+                        width: rule.lift * 0.5, // Épaisseur selon le lift
+                        title: `Confiance: ${(rule.confidence * 100).toFixed(1)}% | Lift: ${rule.lift.toFixed(2)}`
+                    });
+                });
+
+                // Mettre à jour les stats
+                document.getElementById('nodeCount').innerText = addedNodes.size;
+                document.getElementById('edgeCount').innerText = rules.length;
+
+                // Créer le réseau
+                const container = document.getElementById('mynetwork');
+                const networkData = { nodes: nodes, edges: edges };
+                const options = {
+                    nodes: {
+                        shape: 'dot',
+                        scaling: {
+                            min: 10,
+                            max: 30
+                        },
+                        font: {
+                            size: 14,
+                            face: 'Outfit'
+                        }
+                    },
+                    physics: {
+                        forceAtlas2Based: {
+                            gravitationalConstant: -50,
+                            centralGravity: 0.01,
+                            springLength: 100,
+                            springConstant: 0.08
+                        },
+                        maxVelocity: 50,
+                        solver: 'forceAtlas2Based',
+                        timestep: 0.35,
+                        stabilization: { iterations: 150 }
+                    },
+                    interaction: {
+                        tooltipDelay: 200,
+                        hover: true
+                    }
+                };
+                
+                new vis.Network(container, networkData, options);
+
+            } catch (error) {
+                console.error('Erreur chargement graphe:', error);
+            }
+        }
+
+        loadGraph();
+    </script>
+</body>
+</html>
