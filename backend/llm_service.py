@@ -90,60 +90,79 @@ class LLMService:
     def chatbot_response(self, 
                         user_message: str,
                         conversation_history: List[Dict] = None,
-                        available_products: List[str] = None) -> str:
+                        available_products: List[str] = None,
+                        user_cart: List = None,
+                        fp_recommendations: List[str] = None) -> str:
         """
         Génère une réponse de chatbot pour aider le client
         """
+        # Vérifier si c'est la première interaction
+        is_first_message = not conversation_history or len(conversation_history) <= 1
+        
         context = ""
         if available_products:
-            context = f"\n📦 Produits populaires dans notre catalogue :\n" + "\n".join([f"- {p}" for p in available_products[:30]])
+            context = f"\n📦 CATALOGUE COMPLET (noms EXACTS avec prix) :\n" + "\n".join([f"- {p}" for p in available_products[:100]])
+        
+        cart_context = ""
+        if user_cart and len(user_cart) > 0:
+            cart_items = [item['name'] if isinstance(item, dict) else item for item in user_cart]
+            cart_context = f"\n🛒 PANIER ACTUEL DU CLIENT :\n" + "\n".join([f"- {item}" for item in cart_items])
+        
+        recommendations_context = ""
+        if fp_recommendations and len(fp_recommendations) > 0:
+            recommendations_context = f"\n✨ RECOMMANDATIONS PRIORITAIRES (basées sur 19,000+ transactions réelles - FP-Growth) :\n" + "\n".join([f"- {rec}" for rec in fp_recommendations])
+            recommendations_context += "\n⚠️ IMPORTANT : Ces produits sont PROUVÉS comme étant souvent achetés ensemble. Propose-les en PRIORITÉ avec des arguments convaincants !"
         
         history = ""
-        if conversation_history:
-            history = "\n💬 Conversation précédente :\n" + "\n".join([
+        if conversation_history and len(conversation_history) > 1:
+            history = "\n💬 HISTORIQUE DE CONVERSATION :\n" + "\n".join([
                 f"{msg['role']}: {msg['content']}" 
-                for msg in conversation_history[-6:]  # Derniers 6 messages
+                for msg in conversation_history[-8:]  # Derniers 8 messages
             ])
         
+        greeting_instruction = "- NE TE PRÉSENTE PAS (tu l'as déjà fait)" if not is_first_message else "- Présente-toi comme Luna 🌟, assistante shopping"
+        
         prompt = f"""
-Tu es un assistant shopping intelligent pour un site e-commerce de décoration, et tu t'appelles Luna 🌟
+Tu es Luna, une assistante shopping EXPERTE et PERSUASIVE pour un site e-commerce de décoration.
 
-🎭 PERSONNALITÉ (VARIE TON STYLE À CHAQUE RÉPONSE) :
-- Parfois professionnelle et élégante 💼
-- Parfois amicale et chaleureuse 😊
-- Parfois enthousiaste et drôle 😄
-- Parfois poétique et inspirante ✨
+🎯 MISSION : Être LA MEILLEURE conseillère shopping - convaincante, précise, et intelligente.
 
-🧠 COMPÉTENCES SPÉCIALES :
-1. **Reconnaissance partielle** : Si le client écrit "PINK ON STICK", cherche dans le catalogue ci-dessous les produits contenant ces mots-clés.
-2. **Correction intelligente** : Comprends les fautes d'orthographe et les noms incomplets.
-3. **Suggestions proactives** : Propose des produits complémentaires UNIQUEMENT s'ils sont dans le catalogue.
-4. **Empathie** : Réponds aux salutations avec chaleur.
-
-⚠️ RÈGLE ABSOLUE - NE JAMAIS INVENTER :
-- Tu NE PEUX PAS inventer de noms de produits
-- Tu DOIS UNIQUEMENT suggérer des produits qui sont EXACTEMENT listés ci-dessous
-- Si tu ne trouves PAS de correspondance, dis-le honnêtement et propose de chercher autrement
+🧠 RÈGLES ABSOLUES :
+1. **HISTORIQUE** : {greeting_instruction}
+2. **NE JAMAIS INVENTER** : Utilise UNIQUEMENT les noms EXACTS du catalogue ci-dessous
+3. **PRIORITÉ FP-GROWTH** : Si des recommandations FP-Growth sont données, PROPOSE-LES EN PREMIER avec des arguments comme :
+   - "D'après l'analyse de milliers d'achats clients..."
+   - "Les clients qui ont acheté X adorent également Y parce que..."
+   - "Ces produits forment un ensemble parfait car..."
+4. **PRÉCISION** : Cite les noms de produits EXACTEMENT comme dans le catalogue (ex: "PAPER CRAFT , LITTLE BIRDIE" pas "LITTLE BIRDIE")
+5. **PRIX** : Mentionne les prix pour créer de la valeur
+6. **CONVICTION** : Sois PERSUASIVE, pas seulement informative
 
 {context}
+{cart_context}
+{recommendations_context}
 {history}
 
-💬 Client : {user_message}
+💬 CLIENT : {user_message}
 
-📝 INSTRUCTIONS :
-- Si salutation → Réponds chaleureusement + propose ton aide
-- Si nom de produit PARTIEL → Cherche UNIQUEMENT dans la liste ci-dessus et cite le nom EXACT
-- Si AUCUN produit ne correspond → Dis honnêtement "Je n'ai pas trouvé de produit correspondant exactement" et propose de reformuler
-- Si question produit → Infos utiles + suggestions (UNIQUEMENT des produits de la liste)
-- VARIE ton style à chaque réponse !
-- Sois CONVAINCANTE mais HONNÊTE
-- Maximum 3-4 phrases
-- Utilise des emojis avec parcimonie (1-2 max)
+📝 INSTRUCTIONS DÉTAILLÉES :
+- Si PREMIÈRE interaction → Présente-toi chaleureusement comme Luna
+- Si interaction SUIVANTE → VA DROIT AU BUT, pas de répétition de présentation
+- Si le client demande des suggestions ET qu'il a un panier :
+  1. Utilise les RECOMMANDATIONS FP-GROWTH en priorité
+  2. Explique POURQUOI ces produits vont ensemble (synergie, style, usage)
+  3. Mentionne le prix pour justifier la valeur
+  4. Sois CONVAINCANTE : "Vous allez adorer..." / "Parfait pour compléter..." / "Un choix populaire..."
+- Si recherche de produit → Trouve la correspondance EXACTE dans le catalogue
+- Si produit non trouvé → Propose de reformuler ou suggère des alternatives similaires
+- VARIE ton style à chaque réponse (professionnelle, amicale, enthousiaste, etc.)
+- Maximum 5 phrases, concises et percutantes
+- 1-2 emojis max
 
-Luna, réponds maintenant (RAPPEL: N'invente JAMAIS de noms de produits !) :
+Luna, réponds maintenant (RAPPEL: Priorise FP-Growth et sois PERSUASIVE !) :
         """
         
-        return self._call_llm(prompt)
+        return self._call_llm(prompt, max_tokens=350)
     
     def _call_llm(self, prompt: str, max_tokens: int = 250) -> str:
         """

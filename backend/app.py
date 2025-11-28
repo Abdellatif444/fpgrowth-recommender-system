@@ -651,6 +651,7 @@ def chatbot_interaction():
         data = request.get_json()
         user_message = data.get('message', '')
         conversation_history = data.get('history', [])
+        user_cart = data.get('cart', [])  # Nouveau: panier de l'utilisateur
         
         if not user_message:
             return jsonify({
@@ -658,19 +659,43 @@ def chatbot_interaction():
                 'error': 'Le message ne peut pas être vide'
             }), 400
         
-        # Récupérer la liste des produits disponibles si l'analyse a été faite
+        # Récupérer TOUS les produits disponibles avec métadonnées
         available_products = None
+        recommendations = None
+        
         if app_state.get('data_loaded'):
             try:
-                top_products = data_loader.get_top_products(50)
-                available_products = list(top_products.keys())
+                # Récupérer beaucoup plus de produits (top 200)
+                top_products = data_loader.get_top_products(200)
+                
+                # Enrichir avec les métadonnées (prix, description)
+                metadata = products_manager.get_all_products()
+                products_with_info = []
+                for name in top_products.keys():
+                    product_meta = metadata.get(name, {})
+                    price = product_meta.get('price', 0)
+                    products_with_info.append(f"{name} ({price}€)")
+                
+                available_products = products_with_info
+                
+                # Si le panier n'est pas vide, obtenir des recommandations FP-Growth
+                if user_cart and len(user_cart) > 0:
+                    try:
+                        cart_names = [item['name'] if isinstance(item, dict) else item for item in user_cart]
+                        recs = data_loader.get_recommendations(cart_names, top_n=10)
+                        if recs:
+                            recommendations = [rec['product'] for rec in recs[:5]]
+                    except:
+                        pass
             except:
                 pass
         
         response = llm_service.chatbot_response(
             user_message=user_message,
             conversation_history=conversation_history,
-            available_products=available_products
+            available_products=available_products,
+            user_cart=user_cart,
+            fp_recommendations=recommendations
         )
         
         return jsonify({

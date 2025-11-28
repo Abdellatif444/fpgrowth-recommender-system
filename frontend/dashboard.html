@@ -224,6 +224,8 @@
 
         let allProducts = [];
         let cart = [];
+        let chatHistory = [];  // Historique de conversation pour éviter les répétitions
+
 
         // Load Products
         async function loadProducts() {
@@ -423,23 +425,26 @@
             addMessage(msg, 'user');
             input.value = '';
             
+            // Ajouter à l'historique
+            chatHistory.push({ role: 'user', content: msg });
+            
             // Call API
             try {
-                // Construct history (simplified)
-                const history = []; 
-                
                 const response = await fetch('http://localhost:5000/api/llm/chatbot', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({ 
                         message: msg,
-                        history: history
+                        history: chatHistory,  // Envoyer l'historique complet
+                        cart: cart  // Envoyer le panier pour des recommandations intelligentes
                     })
                 });
                 
                 const data = await response.json();
                 if (data.success) {
                     addMessage(data.response, 'bot');
+                    // Ajouter la réponse du bot à l'historique
+                    chatHistory.push({ role: 'assistant', content: data.response });
                 }
             } catch (e) {
                 addMessage("Désolé, je ne peux pas répondre pour le moment.", 'bot');
