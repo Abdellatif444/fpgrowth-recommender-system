@@ -766,4 +766,5 @@ if __name__ == '__main__':
     except Exception as e:
         print(f"Info: Aucune donnée chargée au démarrage ({e})")
 
-    app.run(host='0.0.0.0', port=5000, debug=True)
+    port = int(os.environ.get('PORT', 5000))
+    app.run(host='0.0.0.0', port=port, debug=os.environ.get('FLASK_ENV') == 'development')

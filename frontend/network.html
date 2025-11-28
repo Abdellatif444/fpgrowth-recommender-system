@@ -96,7 +96,7 @@
         async function loadGraph() {
             try {
                 // Récupérer les règles depuis l'API existante
-                const response = await fetch('http://localhost:5000/api/rules?min_confidence=0.5&top_n=200');
+                const response = await fetch('/api/rules?min_confidence=0.5&top_n=200');
                 const data = await response.json();
                 
                 if (!data.success) return;

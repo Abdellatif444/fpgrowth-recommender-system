@@ -101,7 +101,7 @@
 
         async function loadProducts() {
             try {
-                const response = await fetch('http://localhost:5000/api/products');
+                const response = await fetch('/api/products');
                 const data = await response.json();
                 
                 if (data.success) {
@@ -165,7 +165,7 @@
                 formData.append('image', fileInput.files[0]);
                 
                 try {
-                    const uploadRes = await fetch('http://localhost:5000/api/upload-image', {
+                    const uploadRes = await fetch('/api/upload-image', {
                         method: 'POST',
                         body: formData
                     });
@@ -182,7 +182,7 @@
             
             // Update product data
             try {
-                const response = await fetch('http://localhost:5000/api/products', {
+                const response = await fetch('/api/products', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
