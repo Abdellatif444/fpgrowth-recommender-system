@@ -675,6 +675,13 @@
 
         // Load on start
         loadProducts();
+
+        function logout() {
+            localStorage.removeItem('token');
+            localStorage.removeItem('username');
+            localStorage.removeItem('role');
+            window.location.href = 'login.html';
+        }
     </script>
 </body>
 </html>
